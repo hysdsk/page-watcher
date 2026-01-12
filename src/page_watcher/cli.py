@@ -7,7 +7,7 @@ from .config import load_config
 from .fetcher import fetch_html_with_js
 from .detectors import contains_status_td, sha256_hex
 from .state.store import StateStore, TriggerEvent
-from .targets.x1919 import TARGET
+from .targets import x1919, x1413
 from .notifier.discord import DiscordNotifier
 
 
@@ -28,8 +28,8 @@ def build_argparser() -> argparse.ArgumentParser:
     p.add_argument(
         "--target",
         default="x1919",
-        choices=["x1919"],
-        help="監視ターゲット（今はx1919のみ）",
+        choices=["x1919", "x1413"],
+        help="監視ターゲット",
     )
     p.add_argument(
         "--force",
@@ -48,11 +48,14 @@ def main() -> int:
     args = build_argparser().parse_args()
     cfg = load_config()
 
-    # 今はターゲット1つだけ
-    if args.target != "x1919":
-        raise SystemExit("Unknown target")
+    # ターゲット選択
+    if args.target == "x1919":
+        target = x1919.TARGET
+    elif args.target == "x1413":
+        target = x1413.TARGET
+    else:
+        raise SystemExit(f"Unknown target: {args.target}")
 
-    target = TARGET
     store = StateStore(cfg.state_base_dir, target.key)
 
     if store.is_triggered() and not args.force:
