@@ -4,7 +4,7 @@ import argparse
 from datetime import datetime, timezone, timedelta
 
 from .config import load_config
-from .fetcher import fetch_html_with_js
+from .fetcher import fetch_html_with_js, fetch_html_with_click
 from .detectors import contains_status_td, sha256_hex
 from .state.store import StateStore, TriggerEvent
 from .targets import x1919, x1413
@@ -80,6 +80,18 @@ def main() -> int:
 
         # table内に status_2 または status_3 クラスの td があれば「変化検知」
         has_status_td = contains_status_td(html)
+
+        # 最初のページで見つからなければ、次のページ（datepicker-next）をクリックしてチェック
+        if not has_status_td:
+            html_next = fetch_html_with_click(
+                target.url,
+                user_agent=cfg.user_agent,
+                timeout_sec=cfg.timeout_sec,
+                click_selector="a.ui-datepicker-next",
+                wait_after_click=2.0,
+                wait_for_selector_after_click="tbody tr td"
+            )
+            has_status_td = contains_status_td(html_next)
 
         if has_status_td:
             event = TriggerEvent(
