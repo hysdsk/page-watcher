@@ -4,8 +4,8 @@ import argparse
 from datetime import datetime, timezone, timedelta
 
 from .config import load_config
-from .fetcher import fetch_html
-from .detectors import contains_block_text, sha256_hex
+from .fetcher import fetch_html_with_js
+from .detectors import contains_status_td, sha256_hex
 from .state.store import StateStore, TriggerEvent
 from .targets.x1919 import TARGET
 from .notifier.discord import DiscordNotifier
@@ -62,25 +62,31 @@ def main() -> int:
         if not ok:
             return 0
 
-        html = fetch_html(target.url, user_agent=cfg.user_agent, timeout_sec=cfg.timeout_sec)
+        html = fetch_html_with_js(
+            target.url,
+            user_agent=cfg.user_agent,
+            timeout_sec=cfg.timeout_sec,
+            wait_for_selector="tbody tr td",  # JS実行後のtbodyが描画されるまで待機
+            wait_time=3.0
+        )
         h = sha256_hex(html)
 
         last_h = store.load_last_hash()
         if h != last_h:
             store.save_last_hash(h)
 
-        # ブロック文言が無ければ「変化検知」
-        blocking = contains_block_text(html, target.block_text)
+        # table内に status_2 または status_3 クラスの td があれば「変化検知」
+        has_status_td = contains_status_td(html)
 
-        if not blocking:
+        if has_status_td:
             event = TriggerEvent(
                 url=target.url,
                 detected_at=jst_now_iso(),
-                reason="BLOCK_TEXT_NOT_FOUND",
+                reason="STATUS_TD_FOUND",
                 last_hash=h,
                 extra={
                     "target_key": target.key,
-                    "note": "予約受付が再開した等の可能性。ページを確認してください。",
+                    "note": "status_2 または status_3 のステータスが見つかりました。ページを確認してください。",
                 },
             )
             store.mark_triggered(event)
