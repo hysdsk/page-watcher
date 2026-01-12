@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import time
 import requests
+from playwright.sync_api import sync_playwright, TimeoutError as PlaywrightTimeout
 
 
 def fetch_html(url: str, *, user_agent: str, timeout_sec: int, retries: int = 2) -> str:
@@ -27,5 +28,134 @@ def fetch_html(url: str, *, user_agent: str, timeout_sec: int, retries: int = 2)
                 raise
 
     # ここには来ないが型のため
+    assert last_exc is not None
+    raise last_exc
+
+
+def fetch_html_with_js(
+    url: str,
+    *,
+    user_agent: str,
+    timeout_sec: int,
+    wait_for_selector: str | None = None,
+    wait_time: float = 2.0,
+    retries: int = 2
+) -> str:
+    """
+    PlaywrightでJavaScript実行後のHTMLを取得
+    
+    Args:
+        url: 取得するURL
+        user_agent: User-Agentヘッダー
+        timeout_sec: タイムアウト秒数
+        wait_for_selector: 待機するCSSセレクタ（Noneの場合は固定時間待機）
+        wait_time: wait_for_selectorがNoneの場合の待機時間（秒）
+        retries: リトライ回数
+    """
+    last_exc: Exception | None = None
+    
+    for attempt in range(retries + 1):
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                context = browser.new_context(
+                    user_agent=user_agent,
+                    locale='ja-JP',
+                    viewport={'width': 1280, 'height': 720}
+                )
+                page = context.new_page()
+                
+                # ページを開く
+                page.goto(url, timeout=timeout_sec * 1000, wait_until='networkidle')
+                
+                # 特定の要素が表示されるまで待機、またはJSの実行を待つ
+                if wait_for_selector:
+                    page.wait_for_selector(wait_for_selector, timeout=timeout_sec * 1000)
+                else:
+                    time.sleep(wait_time)
+                
+                # HTMLを取得
+                html = page.content()
+                
+                browser.close()
+                return html
+                
+        except (PlaywrightTimeout, Exception) as e:
+            last_exc = e
+            if attempt < retries:
+                time.sleep(1.0 + attempt)
+            else:
+                raise
+    
+    assert last_exc is not None
+    raise last_exc
+
+
+def fetch_html_with_click(
+    url: str,
+    *,
+    user_agent: str,
+    timeout_sec: int,
+    click_selector: str,
+    wait_after_click: float = 2.0,
+    wait_for_selector_after_click: str | None = None,
+    retries: int = 2
+) -> str:
+    """
+    Playwrightで特定の要素をクリックした後のHTMLを取得
+    
+    Args:
+        url: 取得するURL
+        user_agent: User-Agentヘッダー
+        timeout_sec: タイムアウト秒数
+        click_selector: クリックする要素のCSSセレクタ（例: 'a.target-class'）
+        wait_after_click: クリック後の待機時間（秒）
+        wait_for_selector_after_click: クリック後に待機するCSSセレクタ（Noneの場合は固定時間待機）
+        retries: リトライ回数
+    
+    Returns:
+        クリック後のHTML文字列
+    """
+    last_exc: Exception | None = None
+    
+    for attempt in range(retries + 1):
+        try:
+            with sync_playwright() as p:
+                browser = p.chromium.launch(headless=True)
+                context = browser.new_context(
+                    user_agent=user_agent,
+                    locale='ja-JP',
+                    viewport={'width': 1280, 'height': 720}
+                )
+                page = context.new_page()
+                
+                # ページを開く
+                page.goto(url, timeout=timeout_sec * 1000, wait_until='networkidle')
+                
+                # クリック対象の要素が表示されるまで待機
+                page.wait_for_selector(click_selector, timeout=timeout_sec * 1000)
+                
+                # 要素をクリック
+                page.click(click_selector)
+                
+                # クリック後の処理を待つ
+                if wait_for_selector_after_click:
+                    page.wait_for_selector(wait_for_selector_after_click, timeout=timeout_sec * 1000)
+                else:
+                    time.sleep(wait_after_click)
+                
+                # HTMLを取得
+                html = page.content()
+                
+                browser.close()
+                return html
+                
+        except (PlaywrightTimeout, Exception) as e:
+            last_exc = e
+            if attempt < retries:
+                time.sleep(1.0 + attempt)
+            else:
+                raise
+    
     assert last_exc is not None
     raise last_exc
