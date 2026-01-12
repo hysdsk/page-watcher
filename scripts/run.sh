@@ -10,4 +10,6 @@ set +a
 
 export PYTHONPATH=src
 
-/usr/bin/python3 -m page_watcher.cli >> /var/log/cron/page_watcher.log 2>&1
+for TARGET in x1919 x1413; do
+    /usr/bin/python3 -m page_watcher.cli --target $TARGET >> /var/log/cron/page_watcher-$TARGET.log 2>&1
+done
