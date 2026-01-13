@@ -4,5 +4,4 @@
 python3 -m pip install beautifulsoup4 playwright
 python3 -m playwright install chromium
 python3 -m playwright install-deps chromium
-
 ```
