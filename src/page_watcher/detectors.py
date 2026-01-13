@@ -26,3 +26,15 @@ def contains_status_td(html: str) -> bool:
 
 def sha256_hex(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8", errors="ignore")).hexdigest()
+
+
+def extract_mansion_name(html: str) -> str:
+    """h1.ttl01 のテキストを抽出してマンション名を返す"""
+    try:
+        soup = BeautifulSoup(html, 'html.parser')
+        h1_tag = soup.find('h1', class_='ttl01')
+        if h1_tag:
+            return h1_tag.get_text(strip=True)
+        return "不明"
+    except Exception:
+        return "不明"
