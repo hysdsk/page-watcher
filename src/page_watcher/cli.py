@@ -5,7 +5,7 @@ from datetime import datetime, timezone, timedelta
 
 from .config import load_config
 from .fetcher import fetch_html_with_js, fetch_html_with_click
-from .detectors import contains_status_td, sha256_hex
+from .detectors import contains_status_td, sha256_hex, extract_mansion_name
 from .state.store import StateStore, TriggerEvent
 from .targets import x1919, x1413
 from .notifier.discord import DiscordNotifier
@@ -94,6 +94,8 @@ def main() -> int:
             has_status_td = contains_status_td(html_next)
 
         if has_status_td:
+            mansion_name = extract_mansion_name(html)
+            
             event = TriggerEvent(
                 url=target.url,
                 detected_at=jst_now_iso(),
@@ -109,8 +111,9 @@ def main() -> int:
             formatted_detected_at = iso_to_readable(event.detected_at)
             msg = (
                 f"<@{cfg.discord.dsk_play_id}>\n"
-                f"{formatted_detected_at} にページの表示が変わった可能性があります。\n"
-                f"url: {target.url}\n"
+                f"{formatted_detected_at} に予約枠の空きが発生した可能性があります。\n"
+                f"マンション名: {mansion_name}\n"
+                f"予約フォーム: {target.url}\n"
             )
 
             if not args.no_notify:
