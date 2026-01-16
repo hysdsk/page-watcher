@@ -17,12 +17,6 @@ def jst_now_iso() -> str:
     return datetime.now(jst).isoformat()
 
 
-def iso_to_readable(iso_str: str) -> str:
-    """ISO形式の日時文字列を yyyy/mm/dd hh:MM:SS 形式に変換"""
-    dt = datetime.fromisoformat(iso_str)
-    return dt.strftime("%Y/%m/%d %H:%M:%S")
-
-
 def build_argparser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="page-watcher")
     p.add_argument(
@@ -108,11 +102,9 @@ def main() -> int:
             )
             store.mark_triggered(event)
 
-            formatted_detected_at = iso_to_readable(event.detected_at)
             msg = (
                 f"<@{cfg.discord.dsk_play_id}>\n"
-                f"{formatted_detected_at} に予約枠の空きが発生した可能性があります。\n"
-                f"マンション名: {mansion_name}\n"
+                f"「{mansion_name}」のMR予約枠に空きが出ました。\n"
                 f"予約フォーム: {target.url}\n"
             )
 
