@@ -52,9 +52,6 @@ def main() -> int:
 
     store = StateStore(cfg.state_base_dir, target.key)
 
-    if store.is_triggered() and not args.force:
-        return 0
-
     with store.lock() as ok:
         if not ok:
             return 0
@@ -72,7 +69,7 @@ def main() -> int:
         if h != last_h:
             store.save_last_hash(h)
 
-        # table内に status_2 または status_3 クラスの td があれば「変化検知」
+        # table内に status_2 または status_3 クラスの td があれば「予約受付中」
         has_status_td = contains_status_td(html)
 
         # 最初のページで見つからなければ、次のページ（datepicker-next）をクリックしてチェック
@@ -87,26 +84,49 @@ def main() -> int:
             )
             has_status_td = contains_status_td(html_next)
 
-        if has_status_td:
+        # 現在のステータスを判定
+        current_status = "available" if has_status_td else "unavailable"
+        
+        # 前回のステータスを取得
+        last_status = store.load_last_status()
+        
+        # ステータスを保存（常に更新）
+        store.save_last_status(current_status)
+
+        # ステータスが変化した場合のみ通知
+        if last_status != current_status and last_status != "unknown":
             mansion_name = extract_mansion_name(html)
+            
+            if current_status == "available":
+                reason = "STATUS_CHANGED_TO_AVAILABLE"
+                note = "予約受付中に変化しました（status_2 または status_3 が検出されました）"
+                msg = (
+                    f"<@{cfg.discord.dsk_play_id}>\n"
+                    f"「{mansion_name}」のMR予約枠に空きが出ました。\n"
+                    f"予約フォーム: {target.url}\n"
+                )
+            else:
+                reason = "STATUS_CHANGED_TO_UNAVAILABLE"
+                note = "予約不可に変化しました（status_2, status_3 が存在しません）"
+                msg = (
+                    f"<@{cfg.discord.dsk_play_id}>\n"
+                    f"「{mansion_name}」のMR予約枠が埋まりました。\n"
+                    f"予約フォーム: {target.url}\n"
+                )
             
             event = TriggerEvent(
                 url=target.url,
                 detected_at=jst_now_iso(),
-                reason="STATUS_TD_FOUND",
+                reason=reason,
                 last_hash=h,
                 extra={
                     "target_key": target.key,
-                    "note": "status_2 または status_3 のステータスが見つかりました。ページを確認してください。",
+                    "previous_status": last_status,
+                    "current_status": current_status,
+                    "note": note,
                 },
             )
             store.mark_triggered(event)
-
-            msg = (
-                f"<@{cfg.discord.dsk_play_id}>\n"
-                f"「{mansion_name}」のMR予約枠に空きが出ました。\n"
-                f"予約フォーム: {target.url}\n"
-            )
 
             if not args.no_notify:
                 # Discord
