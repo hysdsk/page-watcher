@@ -33,6 +33,7 @@ class StateStore:
 
         self.trigger_flag = self.dir / "triggered.flag"
         self.last_hash_file = self.dir / "last_hash.txt"
+        self.last_status_file = self.dir / "last_status.txt"
         self.event_file = self.dir / "triggered_event.json"
         self.lock_file = self.dir / "run.lock"
 
@@ -46,6 +47,16 @@ class StateStore:
 
     def save_last_hash(self, h: str) -> None:
         self.last_hash_file.write_text(h, encoding="utf-8")
+
+    def load_last_status(self) -> str:
+        """前回のステータスを取得 (available/unavailable/unknown)"""
+        if self.last_status_file.exists():
+            return self.last_status_file.read_text(encoding="utf-8").strip()
+        return "unknown"
+
+    def save_last_status(self, status: str) -> None:
+        """現在のステータスを保存 (available/unavailable)"""
+        self.last_status_file.write_text(status, encoding="utf-8")
 
     def mark_triggered(self, event: TriggerEvent) -> None:
         self.event_file.write_text(
