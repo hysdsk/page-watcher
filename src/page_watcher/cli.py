@@ -7,7 +7,7 @@ from .config import load_config
 from .fetcher import fetch_html_with_js, fetch_html_with_click
 from .detectors import contains_status_td, sha256_hex, extract_mansion_name
 from .state.store import StateStore, TriggerEvent
-from .targets import x1919, x1413
+from .targets import x1919, x1413, g2571
 from .notifier.discord import DiscordNotifier
 
 
@@ -22,7 +22,7 @@ def build_argparser() -> argparse.ArgumentParser:
     p.add_argument(
         "--target",
         default="x1919",
-        choices=["x1919", "x1413"],
+        choices=["x1919", "x1413", "g2571"],
         help="監視ターゲット",
     )
     p.add_argument(
@@ -47,6 +47,8 @@ def main() -> int:
         target = x1919.TARGET
     elif args.target == "x1413":
         target = x1413.TARGET
+    elif args.target == "g2571":
+        target = g2571.TARGET
     else:
         raise SystemExit(f"Unknown target: {args.target}")
 
